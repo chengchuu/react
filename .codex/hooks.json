@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [[ \"$PWD\" != */compiler* ]]; then cat .claude/instructions.md 2>/dev/null || true; fi"
+          }
+        ]
+      }
+    ]
+  }
+}
