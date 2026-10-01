@@ -43,7 +43,7 @@ describe('Mouse Enter fixture reproduction', () => {
       });
 
       expect(
-        container.textContent.match(/Mouse enter call count:/g),
+        container.textContent.match(/Mouse enter call count:/g)
       ).toHaveLength(2);
     } finally {
       await act(() => root.unmount());
