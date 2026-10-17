@@ -16,6 +16,8 @@ const skipFilter = new Set([
   'todo-round2_unicode_string',
   'todo-round3_outlined_naming',
   'todo-round3_promote_used_temps',
+  // The Unicode gating imports are intentionally absent from shared-runtime.
+  'gating/dynamic-gating-unicode-identifiers',
 
   /**
    * `export as namespace` is a .d.ts-shaped construct that breaks sprout's
