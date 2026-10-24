@@ -195,8 +195,12 @@ function evaluatePhi(phi: Phi, constants: Constants): Constant | null {
           loc: GeneratedSource,
         });
 
-        // different constant values, can't constant propogate
-        if (operandValue.value !== value.value) {
+        // Strict equality alone would merge 0 and -0, which are not
+        // interchangeable. Keep rejecting NaN as before.
+        if (
+          operandValue.value !== value.value ||
+          !Object.is(operandValue.value, value.value)
+        ) {
           return null;
         }
         break;
