@@ -195,8 +195,7 @@ function evaluatePhi(phi: Phi, constants: Constants): Constant | null {
           loc: GeneratedSource,
         });
 
-        // Strict equality alone would merge 0 and -0, which are not
-        // interchangeable. Keep rejecting NaN as before.
+        // Distinguish signed zeros while preserving NaN rejection.
         if (
           operandValue.value !== value.value ||
           !Object.is(operandValue.value, value.value)
