@@ -178,7 +178,18 @@ fn find_directives_dynamic_gating<'a>(
 
     for directive in directives {
         if let Some(ident) = parse_dynamic_gating_directive(&directive.value.value) {
-            if is_valid_identifier(ident) {
+            let valid_identifiers =
+                opts.valid_dynamic_gating_identifiers
+                    .as_ref()
+                    .ok_or_else(|| {
+                        let mut error = CompilerError::new();
+                        error.push_error_detail(CompilerErrorDetail::new(
+                            ErrorCategory::Config,
+                            "Dynamic gating requires identifier validation from the Babel adapter",
+                        ));
+                        error
+                    })?;
+            if valid_identifiers.contains(ident) {
                 matches.push((directive, ident.to_string()));
             } else {
                 let mut detail = CompilerErrorDetail::new(
@@ -239,71 +250,6 @@ fn parse_dynamic_gating_directive(value: &str) -> Option<&str> {
         return None;
     }
     Some(condition)
-}
-
-/// Simple check for valid JavaScript identifier (alphanumeric + underscore + $, starting with letter/$/_ )
-/// Also rejects reserved words like `true`, `false`, `null`, etc.
-fn is_valid_identifier(s: &str) -> bool {
-    if s.is_empty() {
-        return false;
-    }
-    let mut chars = s.chars();
-    let first = chars.next().unwrap();
-    if !first.is_alphabetic() && first != '_' && first != '$' {
-        return false;
-    }
-    if !chars.all(|c| c.is_alphanumeric() || c == '_' || c == '$') {
-        return false;
-    }
-    // Check for reserved words (matching Babel's t.isValidIdentifier)
-    !matches!(
-        s,
-        "break"
-            | "case"
-            | "catch"
-            | "continue"
-            | "debugger"
-            | "default"
-            | "do"
-            | "else"
-            | "finally"
-            | "for"
-            | "function"
-            | "if"
-            | "in"
-            | "instanceof"
-            | "new"
-            | "return"
-            | "switch"
-            | "this"
-            | "throw"
-            | "try"
-            | "typeof"
-            | "var"
-            | "void"
-            | "while"
-            | "with"
-            | "class"
-            | "const"
-            | "enum"
-            | "export"
-            | "extends"
-            | "import"
-            | "super"
-            | "implements"
-            | "interface"
-            | "let"
-            | "package"
-            | "private"
-            | "protected"
-            | "public"
-            | "static"
-            | "yield"
-            | "null"
-            | "true"
-            | "false"
-            | "delete"
-    )
 }
 
 // -----------------------------------------------------------------------
@@ -4093,14 +4039,51 @@ mod tests {
     }
 
     #[test]
-    fn test_is_valid_identifier() {
-        assert!(is_valid_identifier("foo"));
-        assert!(is_valid_identifier("_bar"));
-        assert!(is_valid_identifier("$baz"));
-        assert!(is_valid_identifier("foo123"));
-        assert!(!is_valid_identifier(""));
-        assert!(!is_valid_identifier("123foo"));
-        assert!(!is_valid_identifier("foo bar"));
+    fn test_dynamic_gating_identifier_validation_metadata() {
+        let directives: Vec<Directive> = serde_json::from_value(serde_json::json!([{
+            "type": "Directive",
+            "value": {"type": "DirectiveLiteral", "value": "use memo if(getTrue)"}
+        }]))
+        .unwrap();
+        let mut options: PluginOptions = serde_json::from_value(serde_json::json!({
+            "shouldCompile": true,
+            "enableReanimated": false,
+            "isDev": false,
+            "dynamicGating": {"source": "shared-runtime"}
+        }))
+        .unwrap();
+
+        let error = find_directives_dynamic_gating(&directives, &options)
+            .err()
+            .unwrap();
+        assert!(matches!(
+            &error.details[0],
+            CompilerErrorOrDiagnostic::ErrorDetail(detail) if detail.category == ErrorCategory::Config
+        ));
+
+        options.valid_dynamic_gating_identifiers =
+            Some(["getTrue".to_string()].into_iter().collect());
+        let result = find_directives_dynamic_gating(&directives, &options)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result.gating.import_specifier_name, "getTrue");
+
+        options.valid_dynamic_gating_identifiers = Some(Default::default());
+        let error = find_directives_dynamic_gating(&directives, &options)
+            .err()
+            .unwrap();
+        assert!(matches!(
+            &error.details[0],
+            CompilerErrorOrDiagnostic::ErrorDetail(detail) if detail.category == ErrorCategory::Gating
+        ));
+
+        options.dynamic_gating = None;
+        options.valid_dynamic_gating_identifiers = None;
+        assert!(
+            find_directives_dynamic_gating(&directives, &options)
+                .unwrap()
+                .is_none()
+        );
     }
 
     #[test]
@@ -4189,6 +4172,7 @@ mod tests {
             target: super::super::plugin_options::CompilerTarget::Version("19".to_string()),
             gating: None,
             dynamic_gating: None,
+            valid_dynamic_gating_identifiers: None,
             no_emit: false,
             output_mode: None,
             eslint_suppression_rules: None,

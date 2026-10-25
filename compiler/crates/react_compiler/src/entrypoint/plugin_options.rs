@@ -1,4 +1,5 @@
 use react_compiler_hir::environment_config::EnvironmentConfig;
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 
 /// Target configuration for the compiler
@@ -40,6 +41,10 @@ pub struct PluginOptions {
     pub enable_reanimated: bool,
     pub is_dev: bool,
     pub filename: Option<String>,
+
+    /// Dynamic gating condition names validated by the Babel adapter.
+    #[serde(default, rename = "__validDynamicGatingIdentifiers")]
+    pub valid_dynamic_gating_identifiers: Option<FxHashSet<String>>,
 
     // Pass-through options
     #[serde(default = "default_compilation_mode")]
