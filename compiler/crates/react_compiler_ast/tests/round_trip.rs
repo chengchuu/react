@@ -73,9 +73,14 @@ fn round_trip_all_fixtures() {
     let mut passed = 0;
 
     // Fixtures with known issues that can't be fixed in the AST crate:
-    // - lone-surrogate-string-values: contains lone Unicode surrogates (\uD800)
-    //   that serde_json rejects during deserialization.
-    let known_failures: &[&str] = &["lone-surrogate-string-values"];
+    // - Lone-surrogate fixtures require the Babel bridge's JSON sanitizer,
+    //   which this raw serde_json round-trip does not run. They are covered by
+    //   the compiler fixture harness through the native adapter.
+    let known_failures: &[&str] = &[
+        "lone-surrogate-string-values",
+        "lone-surrogate-after-backslashes",
+        "lone-surrogate-escape-controls",
+    ];
 
     for entry in walkdir::WalkDir::new(&json_dir)
         .into_iter()
