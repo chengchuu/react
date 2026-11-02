@@ -4,7 +4,7 @@ function foo() {
     try {
       return [...null];
     } catch {
-      return 'inner catch';
+      return [...undefined];
     }
   } catch {
     return 'outer catch';
