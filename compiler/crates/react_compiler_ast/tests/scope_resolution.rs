@@ -1019,8 +1019,7 @@ fn scope_resolution_rename() {
     let mut skipped = 0;
 
     let known_failures: &[&str] = &[
-        // These fixtures require the Babel bridge's JSON sanitizer, which
-        // this raw serde_json test does not run.
+        // Lone-surrogate fixtures need bridge sanitization, which this test bypasses.
         "lone-surrogate-string-values",
         "lone-surrogate-after-backslashes",
         "lone-surrogate-escape-controls",

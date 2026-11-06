@@ -89,8 +89,7 @@ function getRustCompile(): (
  *
  * Important: we must NOT replace escaped surrogate sequences like \\uD83D\\uDE80
  * that appear in extra.raw fields (literal source text). Consume JSON escapes
- * together so escaped backslashes are skipped without hiding a subsequent
- * genuine surrogate escape.
+ * together so escaped backslashes do not hide lone surrogates.
  */
 function sanitizeJsonSurrogates(json: string): string {
   // Encode lone surrogates as recoverable markers instead of replacing with
@@ -112,7 +111,7 @@ function sanitizeJsonSurrogates(json: string): string {
       unit <= 0xdbff &&
       /^\\u[dD][c-fC-F][0-9a-fA-F]{2}$/.test(json.slice(index + 6, index + 12))
     ) {
-      // Leave a valid surrogate pair for serde_json to decode together.
+      // Leave valid surrogate pairs for serde_json to decode.
       index += 12;
       continue;
     }
