@@ -74,7 +74,7 @@ fn round_trip_all_fixtures() {
 
     // Fixtures with known issues that can't be fixed in the AST crate:
     // - Lone-surrogate fixtures need bridge sanitization, which this test bypasses.
-    //   The native fixture harness covers them.
+    //   These fixtures are tested through the Rust Babel adapter.
     let known_failures: &[&str] = &[
         "lone-surrogate-string-values",
         "lone-surrogate-after-backslashes",
