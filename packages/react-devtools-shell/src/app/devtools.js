@@ -23,13 +23,8 @@ contentWindow.__REACT_DEVTOOLS_TARGET_WINDOW__ = window;
 
 initializeBackend(contentWindow);
 
-// Initialize the front end and activate the backend early so that we are able
-// to pass console settings in local storage to the backend before initial render
+// Initialize the frontend Store before activating the backend.
 const DevTools = initializeFrontend(contentWindow);
-
-// Activate the backend only once the DevTools frontend Store has been initialized.
-// Otherwise the Store may miss important initial tree op codes.
-activateBackend(contentWindow);
 
 const container = document.getElementById('devtools') as any as HTMLElement;
 
@@ -60,6 +55,9 @@ function hookNamesModuleLoaderFunction() {
 }
 
 inject('dist/app-index.js', () => {
+  // Reproduction only: wait for React Native Web to register its style resolver.
+  activateBackend(contentWindow);
+
   initDevTools({
     connect(cb) {
       const root = createRoot(container);
