@@ -7,7 +7,7 @@
 
 import type {ResolvedOptions} from './options';
 import type {ScopeInfo} from './scope';
-import type * as t from '@babel/types';
+import * as t from '@babel/types';
 
 export interface DebugLogEntry {
   kind: 'debug';
@@ -111,6 +111,32 @@ function restoreJsonSurrogates(json: string): string {
   return json.replace(/__SURROGATE_([0-9A-F]{4})__/g, (_, hex) => `\\u${hex}`);
 }
 
+function serializeAst(ast: t.File, dynamicGating: boolean) {
+  const validIdentifiers = new Set<string>();
+  const astJson = JSON.stringify(
+    ast,
+    dynamicGating
+      ? (_key, value) => {
+          if (t.isDirective(value)) {
+            const directive = value.value.value;
+            const prefix = 'use memo if(';
+            if (directive.startsWith(prefix) && directive.endsWith(')')) {
+              const identifier = directive.slice(prefix.length, -1);
+              if (t.isValidIdentifier(identifier)) {
+                validIdentifiers.add(identifier);
+              }
+            }
+          }
+          return value;
+        }
+      : undefined,
+  );
+  return {
+    astJson: sanitizeJsonSurrogates(astJson),
+    validDynamicGatingIdentifiers: [...validIdentifiers],
+  };
+}
+
 export function compileWithRust(
   ast: t.File,
   scopeInfo: ScopeInfo,
@@ -118,11 +144,18 @@ export function compileWithRust(
   code?: string | null,
 ): CompileResult {
   const compile = getRustCompile();
+  const {astJson, validDynamicGatingIdentifiers} = serializeAst(
+    ast,
+    options.dynamicGating != null,
+  );
 
-  const optionsWithCode =
-    code != null ? {...options, __sourceCode: code} : options;
+  const optionsWithCode = {
+    ...options,
+    __sourceCode: code,
+    __validDynamicGatingIdentifiers: validDynamicGatingIdentifiers,
+  };
   const resultJson = compile(
-    sanitizeJsonSurrogates(JSON.stringify(ast)),
+    astJson,
     JSON.stringify(scopeInfo),
     JSON.stringify(optionsWithCode),
   );
@@ -157,17 +190,20 @@ export function compileWithRustProfiled(
 ): ProfiledCompileResult {
   const compile = getRustCompile();
 
-  const optionsWithCode =
-    code != null
-      ? {...options, __sourceCode: code, __profiling: true}
-      : {...options, __profiling: true};
-
   const t0 = performance.now();
-  const astJson = sanitizeJsonSurrogates(JSON.stringify(ast));
+  const {astJson, validDynamicGatingIdentifiers} = serializeAst(
+    ast,
+    options.dynamicGating != null,
+  );
   const t1 = performance.now();
   const scopeJson = JSON.stringify(scopeInfo);
   const t2 = performance.now();
-  const optionsJson = JSON.stringify(optionsWithCode);
+  const optionsJson = JSON.stringify({
+    ...options,
+    __sourceCode: code,
+    __profiling: true,
+    __validDynamicGatingIdentifiers: validDynamicGatingIdentifiers,
+  });
   const t3 = performance.now();
 
   const resultJson = compile(astJson, scopeJson, optionsJson);
